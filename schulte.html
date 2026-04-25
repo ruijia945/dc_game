@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>舒尔特方格 - 注意力训练</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --success: #10b981;
+      --error: #ef4444;
+      --glass-bg: rgba(255, 255, 255, 0.12);
+      --glass-border: rgba(255, 255, 255, 0.2);
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4c1d95 60%, #581c87 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* 标题 */
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: clamp(28px, 6vw, 36px);
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 2px 20px rgba(99, 102, 241, 0.5);
+      margin-bottom: 6px;
+    }
+
+    .header p {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+    }
+
+    /* 面板 - 毛玻璃效果 */
+    .panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 难度选择 */
+    .difficulty-section {
+      margin-bottom: 20px;
+    }
+
+    .section-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .difficulty-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .diff-btn {
+      flex: 1;
+      min-width: 70px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .diff-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .diff-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    /* 状态栏 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-value.time {
+      color: #60a5fa;
+    }
+
+    .stat-value.mistakes {
+      color: #f87171;
+    }
+
+    .stat-value.target {
+      color: #34d399;
+    }
+
+    /* 进度条 */
+    .progress-section {
+      margin-bottom: 20px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .progress-text {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--success), #34d399);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+
+    /* 网格容器 */
+    .grid-container {
+      display: grid;
+      gap: clamp(6px, 1.5vw, 10px);
+      margin-bottom: 20px;
+      aspect-ratio: 1;
+    }
+
+    /* 单个格子 */
+    .cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(18px, 5vw, 28px);
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow:
+        0 4px 15px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell:hover:not(.completed):not(.disabled) {
+      transform: scale(1.08);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+      box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .cell:active:not(.completed):not(.disabled) {
+      transform: scale(0.95);
+    }
+
+    .cell.completed {
+      background: linear-gradient(145deg, rgba(16, 185, 129, 0.4), rgba(16, 185, 129, 0.2));
+      border-color: rgba(16, 185, 129, 0.5);
+      color: rgba(255, 255, 255, 0.4);
+      cursor: default;
+    }
+
+    .cell.disabled {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* 正确动画 */
+    .cell.correct {
+      animation: correctPulse 0.4s ease;
+    }
+
+    @keyframes correctPulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      50% {
+        box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
+        transform: scale(1.1);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        transform: scale(1);
+      }
+    }
+
+    /* 错误动画 */
+    .cell.wrong {
+      animation: wrongShake 0.5s ease;
+    }
+
+    @keyframes wrongShake {
+      0%, 100% { transform: translateX(0); background: rgba(239, 68, 68, 0.3); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+      50% { background: rgba(239, 68, 68, 0.5); }
+    }
+
+    /* 按钮 */
+    .action-btn {
+      width: 100%;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(99, 102, 241, 0.5);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    /* 完成弹窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: linear-gradient(145deg, rgba(30, 27, 75, 0.95), rgba(49, 46, 129, 0.95));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+      animation: modalIn 0.3s ease;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .modal-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+    }
+
+    .modal h2 {
+      font-size: 24px;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
+    .result-stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .result-stat {
+      text-align: center;
+    }
+
+    .result-stat .value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #60a5fa;
+    }
+
+    .result-stat .label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 2px;
+    }
+
+    .result-stat.mistakes .value {
+      color: #f87171;
+    }
+
+    .modal .action-btn {
+      margin-top: 8px;
+    }
+
+    /* 响应式 */
+    @media (max-width: 480px) {
+      .panel {
+        padding: 16px;
+        border-radius: 16px;
+      }
+
+      .stats-grid {
+        gap: 8px;
+      }
+
+      .stat-card {
+        padding: 10px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+      }
+
+      .difficulty-btns {
+        gap: 6px;
+      }
+
+      .diff-btn {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>舒尔特方格</h1>
+      <p>按顺序点击数字，训练你的注意力</p>
+    </div>
+
+    <!-- 难度选择面板 -->
+    <div class="panel">
+      <div class="difficulty-section">
+        <div class="section-label">选择难度</div>
+        <div class="difficulty-btns">
+          <button class="diff-btn" data-size="3">简单 3×3</button>
+          <button class="diff-btn active" data-size="4">中等 4×4</button>
+          <button class="diff-btn" data-size="5">困难 5×5</button>
+          <button class="diff-btn" data-size="6">专家 6×6</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏状态面板 -->
+    <div class="panel">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">用时</div>
+          <div class="stat-value time" id="timeDisplay">0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">失误</div>
+          <div class="stat-value mistakes" id="mistakesDisplay">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">下一个</div>
+          <div class="stat-value target" id="targetDisplay">1</div>
+        </div>
+      </div>
+
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-text">进度</span>
+          <span class="progress-text" id="progressText">0 / 16</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <!-- 游戏网格 -->
+      <div class="grid-container" id="grid"></div>
+
+      <button class="action-btn" id="newGameBtn">新的一局</button>
+    </div>
+  </div>
+
+  <!-- 完成弹窗 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-icon">🎉</div>
+      <h2>太棒了！</h2>
+      <div class="result-stats">
+        <div class="result-stat">
+          <div class="value" id="resultTime">0.00</div>
+          <div class="label">秒</div>
+        </div>
+        <div class="result-stat mistakes">
+          <div class="value" id="resultMistakes">0</div>
+          <div class="label">次失误</div>
+        </div>
+      </div>
+      <button class="action-btn" id="playAgainBtn">再玩一局</button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 游戏状态
+    // ============================================================
+    const state = {
+      gridSize: 4,           // 当前网格大小
+      numbers: [],           // 数字数组
+      currentTarget: 1,      // 当前目标数字
+      completed: 0,          // 已完成数量
+      mistakes: 0,           // 失误次数
+      isPlaying: false,      // 游戏是否进行中
+      isFinished: false,     // 游戏是否结束
+      startTime: 0,          // 开始时间
+      elapsedTime: 0,        // 已用时间
+      timerInterval: null,   // 计时器
+    };
+
+    // ============================================================
+    // DOM 元素
+    // ============================================================
+    const gridEl = document.getElementById('grid');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const mistakesDisplay = document.getElementById('mistakesDisplay');
+    const targetDisplay = document.getElementById('targetDisplay');
+    const progressText = document.getElementById('progressText');
+    const progressFill = document.getElementById('progressFill');
+    const newGameBtn = document.getElementById('newGameBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const resultTime = document.getElementById('resultTime');
+    const resultMistakes = document.getElementById('resultMistakes');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const diffBtns = document.querySelectorAll('.diff-btn');
+
+    // ============================================================
+    // 工具函数
+    // ============================================================
+
+    // Fisher-Yates 洗牌算法
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // 生成随机数字数组
+    function generateNumbers(size) {
+      const total = size * size;
+      const numbers = Array.from({ length: total }, (_, i) => i + 1);
+      return shuffle(numbers);
+    }
+
+    // ============================================================
+    // 游戏核心逻辑
+    // ============================================================
+
+    // 初始化游戏（不自动开始计时）
+    function initGame() {
+      // 停止之前的计时器
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      // 重置状态
+      state.numbers = generateNumbers(state.gridSize);
+      state.currentTarget = 1;
+      state.completed = 0;
+      state.mistakes = 0;
+      state.isPlaying = false;
+      state.isFinished = false;
+      state.startTime = 0;
+      state.elapsedTime = 0;
+
+      // 更新显示
+      updateDisplay();
+      renderGrid();
+    }
+
+    // 更新显示信息
+    function updateDisplay() {
+      timeDisplay.textContent = state.elapsedTime.toFixed(2);
+      mistakesDisplay.textContent = state.mistakes;
+      targetDisplay.textContent = state.currentTarget;
+
+      const total = state.gridSize * state.gridSize;
+      progressText.textContent = `${state.completed} / ${total}`;
+      progressFill.style.width = `${(state.completed / total) * 100}%`;
+    }
+
+    // 渲染网格
+    function renderGrid() {
+      gridEl.innerHTML = '';
+      gridEl.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
+
+      state.numbers.forEach((num, index) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.textContent = num;
+        cell.dataset.number = num;
+        cell.dataset.index = index;
+
+        cell.addEventListener('click', () => handleCellClick(cell, num));
+
+        gridEl.appendChild(cell);
+      });
+    }
+
+    // 开始计时
+    function startTimer() {
+      if (state.isPlaying) return;
+
+      state.isPlaying = true;
+      state.startTime = performance.now();
+
+      state.timerInterval = setInterval(() => {
+        state.elapsedTime = (performance.now() - state.startTime) / 1000;
+        timeDisplay.textContent = state.elapsedTime.toFixed(2);
+      }, 10);
+    }
+
+    // 停止计时
+    function stopTimer() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+    }
+
+    // 处理格子点击
+    function handleCellClick(cell, number) {
+      // 游戏已结束
+      if (state.isFinished) return;
+
+      // 格子已完成
+      if (cell.classList.contains('completed')) return;
+
+      // 点击数字1开始计时
+      if (number === 1 && !state.isPlaying) {
+        startTimer();
+      }
+
+      // 游戏未开始且点的不是1
+      if (!state.isPlaying && number !== 1) {
+        // 提示需要从1开始
+        cell.classList.add('wrong');
+        setTimeout(() => cell.classList.remove('wrong'), 500);
+        return;
+      }
+
+      // 正确点击
+      if (number === state.currentTarget) {
+        handleCorrectClick(cell, number);
+      } else {
+        // 错误点击
+        handleWrongClick(cell);
+      }
+    }
+
+    // 正确点击处理
+    function handleCorrectClick(cell, number) {
+      cell.classList.add('correct');
+
+      setTimeout(() => {
+        cell.classList.remove('correct');
+        cell.classList.add('completed');
+      }, 400);
+
+      state.completed++;
+      state.currentTarget++;
+
+      updateDisplay();
+
+      // 检查是否完成
+      const total = state.gridSize * state.gridSize;
+      if (state.completed >= total) {
+        handleGameComplete();
+      }
+    }
+
+    // 错误点击处理
+    function handleWrongClick(cell) {
+      state.mistakes++;
+      mistakesDisplay.textContent = state.mistakes;
+
+      cell.classList.add('wrong');
+      setTimeout(() => {
+        cell.classList.remove('wrong');
+      }, 500);
+    }
+
+    // 游戏完成处理
+    function handleGameComplete() {
+      state.isFinished = true;
+      stopTimer();
+
+      // 禁用所有格子
+      document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.add('disabled');
+      });
+
+      // 显示结果弹窗
+      setTimeout(() => {
+        resultTime.textContent = state.elapsedTime.toFixed(2);
+        resultMistakes.textContent = state.mistakes;
+        modalOverlay.classList.add('show');
+      }, 500);
+    }
+
+    // ============================================================
+    // 事件绑定
+    // ============================================================
+
+    // 难度切换
+    diffBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // 更新按钮状态
+        diffBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // 更新网格大小
+        state.gridSize = parseInt(btn.dataset.size);
+
+        // 重新初始化
+        initGame();
+      });
+    });
+
+    // 新的一局
+    newGameBtn.addEventListener('click', () => {
+      initGame();
+    });
+
+    // 再玩一局
+    playAgainBtn.addEventListener('click', () => {
+      modalOverlay.classList.remove('show');
+      initGame();
+    });
+
+    // 点击遮罩关闭弹窗
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        modalOverlay.classList.remove('show');
+      }
+    });
+
+    // ============================================================
+    // 启动游戏
+    // ============================================================
+    initGame();
+  </script>
+</body>
+</html>
